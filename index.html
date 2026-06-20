@@ -104,53 +104,38 @@ function conectarOBS(inputConexao, camName) {
     ws.send(JSON.stringify({ op: 1, d: { rpcVersion: 1 } }));
   };
 
-ws.onmessage = function(e) {
+ws.onmessage = (e) => {
     var msg = JSON.parse(e.data);
-
     if (msg.op === 5) {
       var ev = msg.d;
       
-      // LOGICA CORRIGIDA: 
-      // Sempre que qualquer cena mudar no OBS, vamos avaliar o estado ATUAL das cenas
-      // Comparando o nome da câmara deste celular com o que o OBS reporta
-      
+      // LOGICA DE REINÍCIO FORÇADO
+      // Antes de processar qualquer mudança, tratamos o evento especifico
       if (ev.eventType === 'CurrentPreviewSceneChanged' || ev.eventType === 'CurrentProgramSceneChanged') {
         
-        // Vamos verificar o status real de tudo
-        var program = ev.eventType === 'CurrentProgramSceneChanged' ? ev.eventData.sceneName : null;
-        var preview = ev.eventType === 'CurrentPreviewSceneChanged' ? ev.eventData.sceneName : null;
+        // Buscamos qual é a cena ATUAL que o OBS reportou
+        var cenaReportada = ev.eventData.sceneName;
 
-        // Se o OBS não enviou o nome da cena no evento (em alguns casos raros), 
-        // a gente não altera nada para não causar erro
-        if (ev.eventData && ev.eventData.sceneName) {
-           var cenaAtual = ev.eventData.sceneName;
-
-           if (ev.eventType === 'CurrentProgramSceneChanged') {
-             if (cenaAtual === camName) {
-               atualizarInterfaceTally('● AO VIVO', 'pgm');
-             } else {
-               // Se outra câmera foi para o AO VIVO, a nossa deve voltar para Standby
-               // A menos que ela esteja na prévia
-               atualizarInterfaceTally('STANDBY', 'standby');
-             }
-           }
-
-           if (ev.eventType === 'CurrentPreviewSceneChanged') {
-             if (cenaAtual === camName) {
-               atualizarInterfaceTally('🎬 PRÉVIA', 'prv');
-             } else {
-               // Se outra câmera foi para a PRÉVIA, a nossa deve voltar para Standby
-               atualizarInterfaceTally('STANDBY', 'standby');
-             }
-           }
+        // Se este celular NÃO É a cena que o OBS reportou agora, ele força o estado para STANDBY
+        // Isso garante que se a CAM1 mudou, a CAM2 recebe a ordem de limpar o sinal
+        if (cenaReportada !== camName) {
+            // Só mudamos para standby se o evento for uma troca de cena
+            // E o nome da cena não bater com a nossa
+            atualizarInterfaceTally('STANDBY', 'standby');
+        } 
+        
+        // Agora aplicamos o estado correto se a cena BATER com a nossa
+        if (ev.eventType === 'CurrentPreviewSceneChanged' && cenaReportada === camName) {
+            atualizarInterfaceTally('🎬 PRÉVIA', 'prv');
+        }
+        if (ev.eventType === 'CurrentProgramSceneChanged' && cenaReportada === camName) {
+            atualizarInterfaceTally('● AO VIVO', 'pgm');
         }
       }
-
-      if (ev.eventType === 'CustomEvent' && ev.eventData.type === 'camcmd') {
-        var dados = ev.eventData;
-        if (dados.target === camName || dados.target === 'ALL') {
-          mostrarComandoOperador(dados.msg);
-        }
+      
+      // Comando de Texto (Sem alterações)
+      else if (ev.eventType === 'CustomEvent' && ev.eventData.type === 'camcmd') {
+        if (ev.eventData.target === camName || ev.eventData.target === 'ALL') mostrarComandoOperador(ev.eventData.msg);
       }
     }
   };
