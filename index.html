@@ -15,7 +15,7 @@
     .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; }
     
     .status-bar { display: flex; justify-content: space-between; align-items: center; pointer-events: auto; }
-    .tally { font-size: 16px; font-weight: bold; padding: 6px 12px; background: rgba(0,0,0,0.7); border-radius: 20px; border: 1px solid #2a2a40; }
+    .tally { font-size: 16px; font-weight: bold; padding: 6px 12px; background: rgba(0,0,0,0.7); border-radius: 20px; border: 1px solid #2a2a40; color: #6b6b8a; }
     .tally.prv { color: #22c55e; border-color: #22c55e; background: rgba(13,31,13,0.9); }
     .tally.pgm { color: #e53935; border-color: #e53935; background: rgba(31,13,13,0.9); animation: blink 1s infinite; }
     
@@ -36,8 +36,8 @@
   <div class="setup-box" id="setup">
     <h3>CONFIGURAR FILMADOR</h3>
     <input type="text" id="camName" placeholder="Nome da Câmera (ex: CAM1)" value="CAM1">
-    <input type="text" id="obsIp" placeholder="IP do OBS (ex: 192.168.1.50)">
-    <button onclick="iniciarConfig">Iniciar Transmissão</button>
+    <input type="text" id="obsIp" placeholder="IP do OBS (ex: 192.168.1.25)">
+    <button onclick="iniciarConfig()">Iniciar Transmissão</button>
   </div>
 
   <iframe id="videoFrame" allow="camera;microphone;autoplay"></iframe>
@@ -61,15 +61,15 @@ async function iniciarConfig() {
   
   if(!cam || !ip) { alert('Preencha a Câmera e o IP do OBS!'); return; }
   
-  // 1. Oculta o setup
+  // 1. Oculta o painel de setup
   document.getElementById('setup').style.display = 'none';
   
-  // 2. Ativa o VDO.ninja no iframe para transmitir o vídeo do iPhone pro OBS
+  // 2. Ativa o VDO.ninja no iframe para transmitir o vídeo do celular pro OBS
   var streamID = "cmdcam_" + cam.toLowerCase();
   var iframe = document.getElementById('videoFrame');
-  iframe.src = `https://vdo.ninja/?push=${streamID}&clean&transparent&autostart&quality=0&facing=back`;
+  iframe.src = "https://vdo.ninja/?push=" + streamID + "&clean&transparent&autostart&quality=0&facing=back";
 
-  // 3. Força a tela do iPhone a ficar ligada (Wake Lock API)
+  // 3. Força a tela do celular a ficar ligada (Wake Lock API)
   try {
     if ('wakeLock' in navigator) { wakeLock = await navigator.wakeLock.request('screen'); }
   } catch (err) { console.log('WakeLock não suportado ou negado.'); }
@@ -92,7 +92,7 @@ function conectarOBS(ip, camName) {
 
     // Conectado com sucesso
     if (msg.op === 2) {
-      atualizarInterfaceTally('CONECTADO', 'standby');
+      atualizarInterfaceTally('CONECTADO (STANDBY)', 'standby');
     }
 
     // Eventos do OBS (Mudança de cena e Broadcast)
@@ -100,19 +100,24 @@ function conectarOBS(ip, camName) {
       var ev = msg.d;
       
       // Monitora Tally de Prévia e Transmissão
-      if (ev.eventType === 'CurrentProgramSceneChanged') {
-        if(ev.eventData.sceneName === camName) atualizarInterfaceTally('● AO VIVO', 'pgm');
-        else atualizarInterfaceTally('STANDBY', 'standby');
+      if (ev.eventType === 'CurrentProgramSceneChanged') { //
+        if(ev.eventData.sceneName === camName) { //
+          atualizarInterfaceTally('● AO VIVO', 'pgm');
+        } else {
+          atualizarInterfaceTally('STANDBY', 'standby');
+        }
       }
-      if (ev.eventType === 'CurrentPreviewSceneChanged') {
-        if(ev.eventData.sceneName === camName) atualizarInterfaceTally('🎬 PRÉVIA', 'prv');
+      if (ev.eventType === 'CurrentPreviewSceneChanged') { //
+        if(ev.eventData.sceneName === camName) { //
+          atualizarInterfaceTally('🎬 PRÉVIA', 'prv');
+        }
       }
 
       // Captura as mensagens enviadas pelo seu operador-dock.html
-      if (ev.eventType === 'BroadcastCustomEvent' && ev.eventData.type === 'camcmd') {
-        var dados = ev.eventData;
-        if (dados.target === camName || dados.target === 'ALL') {
-          mostrarComandoOperador(dados.msg);
+      if (ev.eventType === 'BroadcastCustomEvent' && ev.eventData.type === 'camcmd') { //
+        var dados = ev.eventData; //
+        if (dados.target === camName || dados.target === 'ALL') { //
+          mostrarComandoOperador(dados.msg); //
         }
       }
     }
