@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#000000">
+  
   <title>CamCmd - Filmador</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -14,13 +19,13 @@
     .tally-border.prv { border: 10px solid #22c55e; }
     .tally-border.pgm { border: 15px solid #e53935; }
 
-    /* A camada sobreposta deixa passar os toques dos dedos (zoom) para o vídeo de fundo */
     .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; }
 
-    .status-bar { display: flex; justify-content: center; align-items: flex-start; pointer-events: auto; margin-top: 15px; }
-    .tally { font-size: 28px; font-weight: 900; padding: 12px 30px; background: rgba(0,0,0,0.85); border-radius: 12px; border: 3px solid #2a2a40; color: #6b6b8a; text-transform: uppercase; letter-spacing: 2px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-    .tally.prv { color: #fff; border-color: #22c55e; background: #22c55e; text-shadow: 1px 1px 3px rgba(0,0,0,0.5); }
-    .tally.pgm { color: #fff; border-color: #e53935; background: #e53935; text-shadow: 1px 1px 3px rgba(0,0,0,0.5); animation: blink 1s infinite; }
+    /* ETIQUETA TALLY MENOR E DISCRETA */
+    .status-bar { display: flex; justify-content: center; align-items: flex-start; pointer-events: auto; margin-top: 10px; }
+    .tally { font-size: 14px; font-weight: bold; padding: 6px 16px; background: rgba(0,0,0,0.85); border-radius: 8px; border: 2px solid #2a2a40; color: #6b6b8a; text-transform: uppercase; letter-spacing: 1px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+    .tally.prv { color: #fff; border-color: #22c55e; background: #22c55e; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
+    .tally.pgm { color: #fff; border-color: #e53935; background: #e53935; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); animation: blink 1s infinite; }
 
     .setup-box { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(18,18,26,0.95); padding: 25px; border-radius: 12px; border: 1.5px solid #2a2a40; z-index: 4; width: 90%; max-width: 320px; pointer-events: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
     .setup-box h3 { font-size: 16px; margin-bottom: 15px; color: #4f6ef7; text-align: center; font-weight: 900; }
@@ -63,20 +68,18 @@ async function iniciarConfig() {
   
   if(!cam || !inputConexao) { alert('Preencha a Câmera e o Link!'); return; }
   
-  // 1. FORÇA ECRÃ INTEIRO E ROTAÇÃO HORIZONTAL
   var elem = document.documentElement;
   if (elem.requestFullscreen) { elem.requestFullscreen(); }
-  else if (elem.webkitRequestFullscreen) { elem.webkitRequestFullscreen(); } // iOS Safari
+  else if (elem.webkitRequestFullscreen) { elem.webkitRequestFullscreen(); } 
   else if (elem.msRequestFullscreen) { elem.msRequestFullscreen(); }
   
   if (screen.orientation && screen.orientation.lock) {
-    screen.orientation.lock("landscape").catch(function(e) { console.log("A rotação não pôde ser bloqueada: ", e); });
+    screen.orientation.lock("landscape").catch(function(e) { console.log("Rotação bloqueada pelo SO"); });
   }
 
   document.getElementById('setup').style.display = 'none';
   atualizarInterfaceTally('A LIGAR...', 'standby');
   
-  // 2. ADICIONADO &zoom NO FINAL PARA PERMITIR O GESTO DE PINÇA
   var streamID = "cmdcam_" + cam.toLowerCase();
   var iframe = document.getElementById('videoFrame');
   iframe.src = "https://vdo.ninja/?push=" + streamID + "&webcam=1&facing=back&clean&transparent&autostart&quality=0&audio=0&zoom";
@@ -154,9 +157,10 @@ function mostrarComandoOperador(texto) {
   alertBox.textContent = texto;
   alertBox.style.display = 'block';
   
+  // MENSAGEM AGORA FICA 10 SEGUNDOS NA TELA
   setTimeout(function() {
     alertBox.style.display = 'none';
-  }, 6000);
+  }, 10000);
 }
 </script>
 </body>
