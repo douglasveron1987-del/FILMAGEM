@@ -104,7 +104,7 @@ function conectarOBS(inputConexao, camName) {
     ws.send(JSON.stringify({ op: 1, d: { rpcVersion: 1 } }));
   };
 
-  ws.onmessage = function(e) {
+ws.onmessage = function
     var msg = JSON.parse(e.data);
 
     if (msg.op === 2) {
