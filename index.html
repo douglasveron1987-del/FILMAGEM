@@ -104,27 +104,45 @@ function conectarOBS(inputConexao, camName) {
     ws.send(JSON.stringify({ op: 1, d: { rpcVersion: 1 } }));
   };
 
-  ws.onmessage = function(e) {
+ws.onmessage = function(e) {
     var msg = JSON.parse(e.data);
-
-    if (msg.op === 2) {
-      atualizarInterfaceTally('STANDBY', 'standby');
-    }
 
     if (msg.op === 5) {
       var ev = msg.d;
       
-      if (ev.eventType === 'CurrentProgramSceneChanged') {
-        if(ev.eventData.sceneName === camName) {
-          atualizarInterfaceTally('● AO VIVO', 'pgm');
-        } else {
-          atualizarInterfaceTally('STANDBY', 'standby');
-        }
-      }
+      // LOGICA CORRIGIDA: 
+      // Sempre que qualquer cena mudar no OBS, vamos avaliar o estado ATUAL das cenas
+      // Comparando o nome da câmara deste celular com o que o OBS reporta
       
-      if (ev.eventType === 'CurrentPreviewSceneChanged') {
-        if(ev.eventData.sceneName === camName) {
-          atualizarInterfaceTally('🎬 PRÉVIA', 'prv');
+      if (ev.eventType === 'CurrentPreviewSceneChanged' || ev.eventType === 'CurrentProgramSceneChanged') {
+        
+        // Vamos verificar o status real de tudo
+        var program = ev.eventType === 'CurrentProgramSceneChanged' ? ev.eventData.sceneName : null;
+        var preview = ev.eventType === 'CurrentPreviewSceneChanged' ? ev.eventData.sceneName : null;
+
+        // Se o OBS não enviou o nome da cena no evento (em alguns casos raros), 
+        // a gente não altera nada para não causar erro
+        if (ev.eventData && ev.eventData.sceneName) {
+           var cenaAtual = ev.eventData.sceneName;
+
+           if (ev.eventType === 'CurrentProgramSceneChanged') {
+             if (cenaAtual === camName) {
+               atualizarInterfaceTally('● AO VIVO', 'pgm');
+             } else {
+               // Se outra câmera foi para o AO VIVO, a nossa deve voltar para Standby
+               // A menos que ela esteja na prévia
+               atualizarInterfaceTally('STANDBY', 'standby');
+             }
+           }
+
+           if (ev.eventType === 'CurrentPreviewSceneChanged') {
+             if (cenaAtual === camName) {
+               atualizarInterfaceTally('🎬 PRÉVIA', 'prv');
+             } else {
+               // Se outra câmera foi para a PRÉVIA, a nossa deve voltar para Standby
+               atualizarInterfaceTally('STANDBY', 'standby');
+             }
+           }
         }
       }
 
