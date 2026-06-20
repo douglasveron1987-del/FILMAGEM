@@ -26,7 +26,7 @@
   <div class="setup-box" id="setup">
     <h3>CONFIGURAR FILMADOR</h3>
     <input type="text" id="camName" placeholder="Nome da Câmera (ex: CAM1)" value="CAM1">
-    <input type="text" id="obsIp" placeholder="IP do OBS (ex: 192.168.1.25)">
+    <input type="text" id="obsIp" placeholder="Link Seguro do Ngrok (ou IP)">
     <button onclick="iniciarConfig()">Iniciar Transmissão</button>
   </div>
 
@@ -34,7 +34,7 @@
 
   <div class="overlay">
     <div class="status-bar">
-      <div class="tally" id="tallyDisplay">DIGITE O IP E CLIQUE EM INICIAR</div>
+      <div class="tally" id="tallyDisplay">DIGITE O LINK E CLIQUE EM INICIAR</div>
     </div>
     <div class="cmd-alert" id="cmdAlert"></div>
     <div></div>
@@ -46,14 +46,13 @@ var wakeLock = null;
 
 async function iniciarConfig() {
   var cam = document.getElementById('camName').value.trim().toUpperCase();
-  var ip = document.getElementById('obsIp').value.trim();
+  var inputConexao = document.getElementById('obsIp').value.trim();
   
-  if(!cam || !ip) { alert('Preencha a Câmera e o IP do OBS!'); return; }
+  if(!cam || !inputConexao) { alert('Preencha a Câmera e o Link!'); return; }
   
   document.getElementById('setup').style.display = 'none';
   document.getElementById('tallyDisplay').textContent = "CONECTANDO...";
   
-  // Inicializa o VDO.ninja forçando áudio desativado (&audio=0)
   var streamID = "cmdcam_" + cam.toLowerCase();
   var iframe = document.getElementById('videoFrame');
   iframe.src = "https://vdo.ninja/?push=" + streamID + "&webcam=1&facing=back&clean&transparent&autostart&quality=0&audio=0";
@@ -62,11 +61,22 @@ async function iniciarConfig() {
     if ('wakeLock' in navigator) { wakeLock = await navigator.wakeLock.request('screen'); }
   } catch (err) { console.log('WakeLock não suportado.'); }
 
-  conectarOBS(ip, cam);
+  conectarOBS(inputConexao, cam);
 }
 
-function conectarOBS(ip, camName) {
-  var url = "ws://" + ip + ":4455";
+function conectarOBS(inputConexao, camName) {
+  var url = inputConexao;
+  
+  // A Mágica: Se você colar o link do Ngrok (https), ele converte para WebSocket Seguro (wss)
+  if (url.startsWith("https://")) {
+    url = url.replace("https://", "wss://");
+  } else if (url.startsWith("http://")) {
+    url = url.replace("http://", "ws://");
+  } else if (!url.startsWith("ws")) {
+    // Se digitou apenas o IP antigo, ele tenta o formato local
+    url = "ws://" + url + ":4455";
+  }
+
   ws = new WebSocket(url);
 
   ws.onopen = function() {
@@ -107,7 +117,7 @@ function conectarOBS(ip, camName) {
 
   ws.onclose = function() {
     atualizarInterfaceTally('RECONECTANDO...', 'standby');
-    setTimeout(function() { conectarOBS(ip, camName); }, 2000);
+    setTimeout(function() { conectarOBS(inputConexao, camName); }, 2000);
   };
 }
 
