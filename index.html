@@ -104,38 +104,35 @@ function conectarOBS(inputConexao, camName) {
     ws.send(JSON.stringify({ op: 1, d: { rpcVersion: 1 } }));
   };
 
-ws.onmessage = (e) => {
+  ws.onmessage = function(e) {
     var msg = JSON.parse(e.data);
+
+    if (msg.op === 2) {
+      atualizarInterfaceTally('STANDBY', 'standby');
+    }
+
     if (msg.op === 5) {
       var ev = msg.d;
       
-      // LOGICA DE REINÍCIO FORÇADO
-      // Antes de processar qualquer mudança, tratamos o evento especifico
-      if (ev.eventType === 'CurrentPreviewSceneChanged' || ev.eventType === 'CurrentProgramSceneChanged') {
-        
-        // Buscamos qual é a cena ATUAL que o OBS reportou
-        var cenaReportada = ev.eventData.sceneName;
-
-        // Se este celular NÃO É a cena que o OBS reportou agora, ele força o estado para STANDBY
-        // Isso garante que se a CAM1 mudou, a CAM2 recebe a ordem de limpar o sinal
-        if (cenaReportada !== camName) {
-            // Só mudamos para standby se o evento for uma troca de cena
-            // E o nome da cena não bater com a nossa
-            atualizarInterfaceTally('STANDBY', 'standby');
-        } 
-        
-        // Agora aplicamos o estado correto se a cena BATER com a nossa
-        if (ev.eventType === 'CurrentPreviewSceneChanged' && cenaReportada === camName) {
-            atualizarInterfaceTally('🎬 PRÉVIA', 'prv');
-        }
-        if (ev.eventType === 'CurrentProgramSceneChanged' && cenaReportada === camName) {
-            atualizarInterfaceTally('● AO VIVO', 'pgm');
+      if (ev.eventType === 'CurrentProgramSceneChanged') {
+        if(ev.eventData.sceneName === camName) {
+          atualizarInterfaceTally('● AO VIVO', 'pgm');
+        } else {
+          atualizarInterfaceTally('STANDBY', 'standby');
         }
       }
       
-      // Comando de Texto (Sem alterações)
-      else if (ev.eventType === 'CustomEvent' && ev.eventData.type === 'camcmd') {
-        if (ev.eventData.target === camName || ev.eventData.target === 'ALL') mostrarComandoOperador(ev.eventData.msg);
+      if (ev.eventType === 'CurrentPreviewSceneChanged') {
+        if(ev.eventData.sceneName === camName) {
+          atualizarInterfaceTally('🎬 PRÉVIA', 'prv');
+        }
+      }
+
+      if (ev.eventType === 'CustomEvent' && ev.eventData.type === 'camcmd') {
+        var dados = ev.eventData;
+        if (dados.target === camName || dados.target === 'ALL') {
+          mostrarComandoOperador(dados.msg);
+        }
       }
     }
   };
