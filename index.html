@@ -19,7 +19,7 @@
     .tally.prv { color: #22c55e; border-color: #22c55e; background: rgba(13,31,13,0.9); }
     .tally.pgm { color: #e53935; border-color: #e53935; background: rgba(31,13,13,0.9); animation: blink 1s infinite; }
     
-    /* Configuração inicial (Sumirá após conectar) */
+    /* Configuração inicial */
     .setup-box { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(18,18,26,0.95); padding: 20px; border-radius: 12px; border: 1.5px solid #2a2a40; z-index: 3; width: 90%; max-width: 320px; pointer-events: auto; }
     .setup-box h3 { font-size: 14px; margin-bottom: 12px; color: #4f6ef7; text-align: center; }
     .setup-box input { width: 100%; background: #000; border: 1px solid #2a2a40; padding: 8px; color: #fff; border-radius: 6px; margin-bottom: 10px; font-size: 13px; }
@@ -44,7 +44,7 @@
 
   <div class="overlay">
     <div class="status-bar">
-      <div class="tally" id="tallyDisplay">AGUARDANDO START</div>
+      <div class="tally" id="tallyDisplay">DIGITE O IP E CLIQUE EM INICIAR</div>
     </div>
     
     <div class="cmd-alert" id="cmdAlert"></div>
@@ -63,16 +63,17 @@ async function iniciarConfig() {
   
   // 1. Oculta o painel de setup
   document.getElementById('setup').style.display = 'none';
+  document.getElementById('tallyDisplay').textContent = "CONECTANDO...";
   
-  // 2. Ativa o VDO.ninja no iframe para transmitir o vídeo do celular pro OBS
+  // 2. Ativa o VDO.ninja pulando todas as perguntas (webcam=1 força a câmera, facing=back força a traseira)
   var streamID = "cmdcam_" + cam.toLowerCase();
   var iframe = document.getElementById('videoFrame');
-  iframe.src = "https://vdo.ninja/?push=" + streamID + "&clean&transparent&autostart&quality=0&facing=back";
+  iframe.src = "https://vdo.ninja/?push=" + streamID + "&webcam=1&facing=back&clean&transparent&autostart&quality=0";
 
-  // 3. Força a tela do celular a ficar ligada (Wake Lock API)
+  // 3. Força a tela do celular a ficar ligada
   try {
     if ('wakeLock' in navigator) { wakeLock = await navigator.wakeLock.request('screen'); }
-  } catch (err) { console.log('WakeLock não suportado ou negado.'); }
+  } catch (err) { console.log('WakeLock não suportado.'); }
 
   // 4. Conecta no OBS WebSocket local para receber comandos e Tally
   conectarOBS(ip, cam);
@@ -83,41 +84,36 @@ function conectarOBS(ip, camName) {
   ws = new WebSocket(url);
 
   ws.onopen = function() {
-    // Handshake do OBS v5
     ws.send(JSON.stringify({ op: 1, d: { rpcVersion: 1 } }));
   };
 
   ws.onmessage = function(e) {
     var msg = JSON.parse(e.data);
 
-    // Conectado com sucesso
     if (msg.op === 2) {
       atualizarInterfaceTally('CONECTADO (STANDBY)', 'standby');
     }
 
-    // Eventos do OBS (Mudança de cena e Broadcast)
     if (msg.op === 5) {
       var ev = msg.d;
       
-      // Monitora Tally de Prévia e Transmissão
-      if (ev.eventType === 'CurrentProgramSceneChanged') { //
-        if(ev.eventData.sceneName === camName) { //
+      if (ev.eventType === 'CurrentProgramSceneChanged') {
+        if(ev.eventData.sceneName === camName) {
           atualizarInterfaceTally('● AO VIVO', 'pgm');
         } else {
           atualizarInterfaceTally('STANDBY', 'standby');
         }
       }
-      if (ev.eventType === 'CurrentPreviewSceneChanged') { //
-        if(ev.eventData.sceneName === camName) { //
+      if (ev.eventType === 'CurrentPreviewSceneChanged') {
+        if(ev.eventData.sceneName === camName) {
           atualizarInterfaceTally('🎬 PRÉVIA', 'prv');
         }
       }
 
-      // Captura as mensagens enviadas pelo seu operador-dock.html
-      if (ev.eventType === 'BroadcastCustomEvent' && ev.eventData.type === 'camcmd') { //
-        var dados = ev.eventData; //
-        if (dados.target === camName || dados.target === 'ALL') { //
-          mostrarComandoOperador(dados.msg); //
+      if (ev.eventType === 'BroadcastCustomEvent' && ev.eventData.type === 'camcmd') {
+        var dados = ev.eventData;
+        if (dados.target === camName || dados.target === 'ALL') {
+          mostrarComandoOperador(dados.msg);
         }
       }
     }
@@ -140,7 +136,6 @@ function mostrarComandoOperador(texto) {
   alertBox.textContent = texto;
   alertBox.style.display = 'block';
   
-  // Some automaticamente após 6 segundos
   setTimeout(function() {
     alertBox.style.display = 'none';
   }, 6000);
